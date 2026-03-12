@@ -14,11 +14,9 @@ set "CONFIG_FILE=%LAUNCHER_DIR%sc_ru_config.cfg"
 set "LAUNCHER_PATH="
 set "LIVE_REPO="
 set "LIVE_VERSION="
-set "LIVE_BUILD_TYPE="
 set "LIVE_PATH="
 set "PTU_REPO="
 set "PTU_VERSION="
-set "PTU_BUILD_TYPE="
 set "PTU_PATH="
 
 :: Проверка наличия RSI Launcher.exe рядом со скриптом
@@ -131,15 +129,12 @@ call :ShowProgress "Сканирование папок..." 50
 set "LIVE_FOUND=false"
 set "PTU_FOUND=false"
 set "LIVE_VERSION=не найдена"
-set "LIVE_BUILD_TYPE="
 set "PTU_VERSION=не найдена"
-set "PTU_BUILD_TYPE="
 
 if not "!LIVE_PATH!"=="" (
     set "LIVE_FOUND=true"
     if exist "!LIVE_VERSION_FILE!" (
         call :GetVersionFromFile "!LIVE_VERSION_FILE!" LIVE_VERSION
-        call :GetBuildTypeFromFile "!LIVE_VERSION_FILE!" LIVE_BUILD_TYPE
     )
 )
 
@@ -147,7 +142,6 @@ if not "!PTU_PATH!"=="" (
     set "PTU_FOUND=true"
     if exist "!PTU_VERSION_FILE!" (
         call :GetVersionFromFile "!PTU_VERSION_FILE!" PTU_VERSION
-        call :GetBuildTypeFromFile "!PTU_VERSION_FILE!" PTU_BUILD_TYPE
     )
 )
 
@@ -217,12 +211,6 @@ if "!LIVE_FOUND!"=="true" (
     ) else (
         if not "!LIVE_VERSION!"=="!GITHUB_VERSION!" (
             set "CHOICE_AVAILABLE=true"
-        ) else (
-            :: Версия совпадает, но проверяем тип сборки
-            if not "!LIVE_BUILD_TYPE!"=="LIVE" (
-                echo [WARNING] В папке LIVE обнаружена сборка типа !LIVE_BUILD_TYPE!
-                set "CHOICE_AVAILABLE=true"
-            )
         )
     )
 )
@@ -233,12 +221,6 @@ if "!PTU_FOUND!"=="true" (
     ) else (
         if not "!PTU_VERSION!"=="!GITHUB_VERSION!" (
             set "CHOICE_AVAILABLE=true"
-        ) else (
-            :: Версия совпадает, но проверяем тип сборки
-            if not "!PTU_BUILD_TYPE!"=="PTU" (
-                echo [WARNING] В папке PTU обнаружена сборка типа !PTU_BUILD_TYPE!
-                set "CHOICE_AVAILABLE=true"
-            )
         )
     )
 )
@@ -264,11 +246,7 @@ if "!LIVE_FOUND!"=="true" (
         echo  1 - Установить LIVE локализацию версии !GITHUB_VERSION!
     ) else (
         if not "!LIVE_VERSION!"=="!GITHUB_VERSION!" (
-            echo  1 - Обновить LIVE, текущая: !LIVE_VERSION! ^> !GITHUB_VERSION!
-        ) else (
-            if not "!LIVE_BUILD_TYPE!"=="LIVE" (
-                echo  1 - Переустановить LIVE (обнаружена сборка !LIVE_BUILD_TYPE!)
-            )
+            echo  1 - Обновить LIVE, текущая: !LIVE_VERSION! → !GITHUB_VERSION!
         )
     )
 )
@@ -278,11 +256,7 @@ if "!PTU_FOUND!"=="true" (
         echo  2 - Установить PTU локализацию версии !GITHUB_VERSION!
     ) else (
         if not "!PTU_VERSION!"=="!GITHUB_VERSION!" (
-            echo  2 - Обновить PTU, текущая: !PTU_VERSION! ^> !GITHUB_VERSION!
-        ) else (
-            if not "!PTU_BUILD_TYPE!"=="PTU" (
-                echo  2 - Переустановить PTU (обнаружена сборка !PTU_BUILD_TYPE!)
-            )
+            echo  2 - Обновить PTU, текущая: !PTU_VERSION! → !GITHUB_VERSION!
         )
     )
 )
@@ -302,12 +276,6 @@ if "!CHOICE!"=="1" if "!LIVE_FOUND!"=="true" (
             set "SELECTED_VERSION=LIVE"
             set "SELECTED_PATH=!LIVE_PATH!"
             set "TARGET_VERSION=!GITHUB_VERSION!"
-        ) else (
-            if not "!LIVE_BUILD_TYPE!"=="LIVE" (
-                set "SELECTED_VERSION=LIVE"
-                set "SELECTED_PATH=!LIVE_PATH!"
-                set "TARGET_VERSION=!GITHUB_VERSION!"
-            )
         )
     )
 )
@@ -322,12 +290,6 @@ if "!CHOICE!"=="2" if "!PTU_FOUND!"=="true" (
             set "SELECTED_VERSION=PTU"
             set "SELECTED_PATH=!PTU_PATH!"
             set "TARGET_VERSION=!GITHUB_VERSION!"
-        ) else (
-            if not "!PTU_BUILD_TYPE!"=="PTU" (
-                set "SELECTED_VERSION=PTU"
-                set "SELECTED_PATH=!PTU_PATH!"
-                set "TARGET_VERSION=!GITHUB_VERSION!"
-            )
         )
     )
 )
@@ -914,25 +876,6 @@ for /f "delims=" %%b in ('powershell -NoProfile -Command "try { $content = Get-C
 set "%return_var%=%version%"
 goto :eof
 
-:: Функция извлечения типа сборки из файла global.ini
-:GetBuildTypeFromFile
-set "file_path=%~1"
-set "return_var=%~2"
-set "build_type="
-
-if not exist "%file_path%" (
-    set "%return_var%="
-    goto :eof
-)
-
-:: Используем PowerShell для безопасного чтения файла и поиска типа сборки
-for /f "delims=" %%b in ('powershell -NoProfile -Command "try { $content = Get-Content '%file_path%' -ErrorAction Stop -Encoding UTF8 -Raw; if($content -match 'Установленная версия:\s+(LIVE|PTU)') { $matches[1] } else { '' } } catch { '' }" 2^>nul') do (
-    set "build_type=%%b"
-)
-
-set "%return_var%=%build_type%"
-goto :eof
-
 :: Функция создания бэкапа user.cfg
 :BackupUserCfg
 set "user_cfg_path=%~1"
@@ -1055,47 +998,39 @@ goto :eof
 if defined STATUS_TABLE_READY (
     echo [3/4] Статус локализации:
     echo.
-    echo  +-------+---------------------+----------+------------------------+
-    echo  ^| Версия ^|   Установлена   ^|   GitHub   ^|      Статус           ^|
-    echo  +-------+---------------------+----------+------------------------+
+    echo  ╔═══════════════════════════════════════════════════════════════╗
+    echo  ║ Версия │   Установлена   │   GitHub   │      Статус           ║
+    echo  ╠═══════════════════════════════════════════════════════════════╣
     
     if "!LIVE_FOUND!"=="true" (
         if "!LIVE_VERSION!"=="не найдена" (
-            echo  ^| LIVE   ^| не установлена  ^| !GITHUB_VERSION!  ^|   x Не установлена    ^|
+            echo  ║ LIVE   │ не установлена  │ !GITHUB_VERSION!  │   ✗ Не установлена    ║
         ) else (
             if "!LIVE_VERSION!"=="!GITHUB_VERSION!" (
-                if "!LIVE_BUILD_TYPE!"=="LIVE" (
-                    echo  ^| LIVE   ^|    !LIVE_VERSION!    ^| !GITHUB_VERSION!  ^|   + Актуальна         ^|
-                ) else (
-                    echo  ^| LIVE   ^|    !LIVE_VERSION!    ^| !GITHUB_VERSION!  ^|   ! Неверный тип (!LIVE_BUILD_TYPE!) ^|
-                )
+                echo  ║ LIVE   │    !LIVE_VERSION!    │ !GITHUB_VERSION!  │   ✓ Актуальна         ║
             ) else (
-                echo  ^| LIVE   ^|    !LIVE_VERSION!    ^| !GITHUB_VERSION!  ^|   x Устарела          ^|
+                echo  ║ LIVE   │    !LIVE_VERSION!    │ !GITHUB_VERSION!  │   ✗ Устарела          ║
             )
         )
     ) else (
-        echo  ^| LIVE   ^|    не найдена   ^| !GITHUB_VERSION!  ^|   x Не установлена    ^|
+        echo  ║ LIVE   │    не найдена   │ !GITHUB_VERSION!  │   ✗ Не установлена    ║
     )
     
     if "!PTU_FOUND!"=="true" (
         if "!PTU_VERSION!"=="не найдена" (
-            echo  ^| PTU    ^| не установлена  ^| !GITHUB_VERSION!  ^|   x Не установлена    ^|
+            echo  ║ PTU    │ не установлена  │ !GITHUB_VERSION!  │   ✗ Не установлена    ║
         ) else (
             if "!PTU_VERSION!"=="!GITHUB_VERSION!" (
-                if "!PTU_BUILD_TYPE!"=="PTU" (
-                    echo  ^| PTU    ^|    !PTU_VERSION!    ^| !GITHUB_VERSION!  ^|   + Актуальна         ^|
-                ) else (
-                    echo  ^| PTU    ^|    !PTU_VERSION!    ^| !GITHUB_VERSION!  ^|   ! Неверный тип (!PTU_BUILD_TYPE!) ^|
-                )
+                echo  ║ PTU    │    !PTU_VERSION!    │ !GITHUB_VERSION!  │   ✓ Актуальна         ║
             ) else (
-                echo  ^| PTU    ^|    !PTU_VERSION!    ^| !GITHUB_VERSION!  ^|   x Устарела          ^|
+                echo  ║ PTU    │    !PTU_VERSION!    │ !GITHUB_VERSION!  │   ✗ Устарела          ║
             )
         )
     ) else (
-        echo  ^| PTU    ^|    не найдена   ^| !GITHUB_VERSION!  ^|   x Не установлена    ^|
+        echo  ║ PTU    │    не найдена   │ !GITHUB_VERSION!  │   ✗ Не установлена    ║
     )
     
-    echo  +-------+---------------------+----------+------------------------+
+    echo  ╚═══════════════════════════════════════════════════════════════╝
     echo.
 )
 goto :eof
@@ -1117,11 +1052,9 @@ if not "!LIVE_PATH!"=="" (
     set "LIVE_VERSION_FILE=!LIVE_PATH!\data\Localization\korean_(south_korea)\global.ini"
     if exist "!LIVE_VERSION_FILE!" (
         call :GetVersionFromFile "!LIVE_VERSION_FILE!" LIVE_VERSION
-        call :GetBuildTypeFromFile "!LIVE_VERSION_FILE!" LIVE_BUILD_TYPE
         set "LIVE_FOUND=true"
     ) else (
         set "LIVE_VERSION=не найдена"
-        set "LIVE_BUILD_TYPE="
         set "LIVE_FOUND=true"
     )
 ) else (
@@ -1132,11 +1065,9 @@ if not "!PTU_PATH!"=="" (
     set "PTU_VERSION_FILE=!PTU_PATH!\data\Localization\korean_(south_korea)\global.ini"
     if exist "!PTU_VERSION_FILE!" (
         call :GetVersionFromFile "!PTU_VERSION_FILE!" PTU_VERSION
-        call :GetBuildTypeFromFile "!PTU_VERSION_FILE!" PTU_BUILD_TYPE
         set "PTU_FOUND=true"
     ) else (
         set "PTU_VERSION=не найдена"
-        set "PTU_BUILD_TYPE="
         set "PTU_FOUND=true"
     )
 ) else (
