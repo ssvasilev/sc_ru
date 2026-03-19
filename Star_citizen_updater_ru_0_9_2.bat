@@ -632,8 +632,6 @@ if /i "!INSTALL_PTU_RESULT!"=="ошибка выбора тега" (
 
 echo.
 echo Все возможные действия завершены.
-echo.
-timeout /t 3 /nobreak >nul
 goto :LaunchGame
 
 :: =========================================================
@@ -1493,7 +1491,7 @@ mkdir "%WORK_DIR%" >nul 2>&1
 
 set "DOWNLOAD_URL=https://github.com/%GITHUB_AUTHOR%/%GITHUB_REPO%/archive/refs/tags/%req_tag%.zip"
 
-powershell -NoProfile -ExecutionPo----licy Bypass -Command "try { Invoke-WebRequest -Headers @{ 'User-Agent'='SC-RU-Updater' } -Uri '%DOWNLOAD_URL%' -OutFile '%ZIP_FILE%' -UseBasicParsing; exit 0 } catch { exit 1 }" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -Headers @{ 'User-Agent'='SC-RU-Updater' } -Uri '%DOWNLOAD_URL%' -OutFile '%ZIP_FILE%' -UseBasicParsing; exit 0 } catch { exit 1 }" >nul 2>&1
 if errorlevel 1 exit /b 1
 
 call :ShowProgress "Распаковка архива..." 40
