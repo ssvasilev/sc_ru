@@ -164,7 +164,7 @@ call :RenderScreen
 :: =========================================================
 :: [1/4] Проверка установленных версий
 :: =========================================================
-echo [1/4] Проверка установленных версий...
+echo Проверка установленных версий...
 call :ShowProgress "Сканирование папок..." 35
 
 call :RefreshVersionStatus
@@ -184,7 +184,7 @@ if "!LIVE_CONFIGURED!"=="false" if "!PTU_CONFIGURED!"=="false" (
 :: =========================================================
 :: [2/4] Проверка релизов на GitHub по тегам
 :: =========================================================
-echo [2/4] Проверка обновлений на GitHub...
+echo Проверка обновлений на GitHub...
 call :ShowProgress "Подключение к GitHub..." 40
 
 call :GetGithubVersionsByTags
@@ -219,8 +219,17 @@ call :RenderScreen
 :: =========================================================
 call :DetermineInstallNeeds
 
+if "!GITHUB_OK!"=="false" (
+    echo Не удалось получить данные об обновлениях
+    echo.
+    call :ShowFinalReport
+    echo Запуск лаунчера через 3 секунды...
+    timeout /t 3 /nobreak >nul
+    goto :LaunchGame
+)
+
 if "!INSTALL_LIVE_NEEDED!"=="false" if "!INSTALL_PTU_NEEDED!"=="false" (
-    echo [4/4] Все версии актуальны!
+    echo Все версии актуальны!
     echo.
     echo ✓ Обновление не требуется
     echo Запуск лаунчера через 3 секунды...
@@ -228,7 +237,7 @@ if "!INSTALL_LIVE_NEEDED!"=="false" if "!INSTALL_PTU_NEEDED!"=="false" (
     goto :LaunchGame
 )
 
-echo [4/4] Запуск автоматической установки...
+echo  Запуск автоматической установки...
 echo.
 
 if "!INSTALL_LIVE_NEEDED!"=="true" (
@@ -477,7 +486,7 @@ if defined PATHS_LOADED (
 goto :eof
 
 :DrawStatusTable
-echo [3/4] Статус локализации:
+echo  Статус локализации:
 echo.
 echo  +-----------------------------------------------------------------------------------+
 echo  ^| Ветка ^| Установлена            ^| GitHub по тегу       ^| Статус                    ^|
@@ -516,9 +525,9 @@ set "cell_text=%raw_status%"
 if /i "%raw_status%"=="актуальна" set "cell_text=✅ актуальна             "
 if /i "%raw_status%"=="устарела" set "cell_text=⚠️ устарела              "
 if /i "%raw_status%"=="не установлена" set "cell_text=📥 не установлена        "
-if /i "%raw_status%"=="неверный тип" set "cell_text=❌ неверный тип         "
-if /i "%raw_status%"=="нет данных GitHub" set "cell_text=🌐 нет данных GitHub    "
-if /i "%raw_status%"=="папка не настроена" set "cell_text=📁 папка не настроена   "
+if /i "%raw_status%"=="неверный тип" set "cell_text=❌ неверный тип          "
+if /i "%raw_status%"=="нет данных GitHub" set "cell_text=🌐 нет данных GitHub     "
+if /i "%raw_status%"=="папка не настроена" set "cell_text=📁 папка не настроена    "
 
 set "%return_var%=%cell_text%"
 goto :eof
@@ -532,7 +541,7 @@ if /i "%raw_status%"=="актуальна" set "status_color=%CLR_GREEN%"
 if /i "%raw_status%"=="устарела" set "status_color=%CLR_YELLOW%"
 if /i "%raw_status%"=="не установлена" set "status_color=%CLR_CYAN%"
 if /i "%raw_status%"=="неверный тип" set "status_color=%CLR_RED%"
-if /i "%raw_status%"=="нет данных GitHub" set "status_color=%CLR_CYAN%"
+if /i "%raw_status%"=="нет данных GitHub" set "status_color=%CLR_RED%"
 if /i "%raw_status%"=="папка не настроена" set "status_color=%CLR_GRAY%"
 
 set "%return_var%=%status_color%"
@@ -602,6 +611,12 @@ echo   LIVE: !INSTALL_LIVE_RESULT!
 echo   PTU : !INSTALL_PTU_RESULT!
 echo.
 
+if "!GITHUB_OK!"=="false" (
+    echo ⚠️ Не удалось получить данные об обновлениях с GitHub.
+    echo.
+    goto :eof
+)
+
 if /i "!INSTALL_LIVE_RESULT!"=="подходящих тегов больше нет" (
     echo ⚠️ LIVE не была обновлена: подходящие теги закончились.
 )
@@ -618,7 +633,8 @@ if /i "!INSTALL_PTU_RESULT!"=="ошибка выбора тега" (
 echo.
 echo Все возможные действия завершены.
 echo.
-goto :eof
+timeout /t 3 /nobreak >nul
+goto :LaunchGame
 
 :: =========================================================
 :: Конфиг / настройка путей
@@ -710,7 +726,7 @@ echo    Первоначальная настройка путей
 echo ════════════════════════════════════════
 echo.
 
-echo [1/4] Настройка пути к RSI Launcher
+echo Настройка пути к RSI Launcher
 echo.
 
 if not "!LAUNCHER_PATH!"=="" (
@@ -741,12 +757,12 @@ if not "!LAUNCHER_PATH!"=="" (
 :SkipLauncherSetup
 
 echo.
-echo [2/4] Поиск установленных версий игры
+echo Поиск установленных версий игры
 echo Автоматический поиск установленных версий...
 call :FindStandardPaths
 
 echo.
-echo [3/4] Настройка папки LIVE
+echo Настройка папки LIVE
 
 if defined LIVE_AUTO_DETECTED (
     echo ✓ Папка LIVE автоматически обнаружена: !LIVE_PATH!
@@ -793,7 +809,7 @@ if "!LIVE_FOUND!"=="false" (
 :SkipLiveSetup
 
 echo.
-echo [4/4] Настройка PTU (опционально)
+echo Настройка PTU (опционально)
 
 if "!PTU_FOUND!"=="true" (
     echo ✓ Найдена потенциальная папка PTU: !PTU_PATH!
@@ -1048,6 +1064,22 @@ goto :eof
 set "INSTALL_LIVE_NEEDED=false"
 set "INSTALL_PTU_NEEDED=false"
 
+if "!GITHUB_OK!"=="false" (
+    if "!LIVE_CONFIGURED!"=="true" (
+        set "INSTALL_LIVE_RESULT=не удалось проверить обновления"
+    ) else (
+        set "INSTALL_LIVE_RESULT=не настроена"
+    )
+
+    if "!PTU_CONFIGURED!"=="true" (
+        set "INSTALL_PTU_RESULT=не удалось проверить обновления"
+    ) else (
+        set "INSTALL_PTU_RESULT=не настроена"
+    )
+
+    goto :eof
+)
+
 if "!LIVE_CONFIGURED!"=="true" (
     if "!LIVE_VERSION!"=="не найдена" set "INSTALL_LIVE_NEEDED=true"
     if "!LIVE_TYPE_MISMATCH!"=="true" set "INSTALL_LIVE_NEEDED=true"
@@ -1087,6 +1119,7 @@ if "!PTU_CONFIGURED!"=="true" (
 ) else (
     set "INSTALL_PTU_RESULT=не настроена"
 )
+
 goto :eof
 
 :CheckCurrentBranchAlreadyUpToDate
