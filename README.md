@@ -41,6 +41,7 @@
 ## 🖥 Требования
 
 - Windows
+- PowerShell
 - Установленный **Star Citizen**
 ---
 
